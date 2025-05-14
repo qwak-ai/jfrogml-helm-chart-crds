@@ -5,6 +5,10 @@ replicaCount: 1
 mode: client
 tunnel:
   client:
+    backoff:
+      initialIntervalMillis: 1000
+      maxIntervalMillis: 12000
+      multiplier: 2
     bridges:
       jfrogml:
         concurrency: 4
@@ -22,10 +26,3 @@ image:
 router:
   serviceRegistry:
     insecure: true
-  extraEnvironmentVariables:
-    - name: JF_BRIDGE_TUNNEL_CLIENT_BACKOFF_INITIALINTERVALMILLIS
-      value: '1000'
-    - name: JF_BRIDGE_TUNNEL_CLIENT_BACKOFF_MAXINTERVALMILLIS
-      value: '12000'
-    - name: JF_BRIDGE_TUNNEL_CLIENT_BACKOFF_MULTIPLIER
-      value: '2'
