@@ -1,0 +1,39 @@
+global:
+  imagePullSecrets:
+    - name: jfrog-edges
+replicaCount: 1
+mode: client
+tunnel:
+  client:
+    bridges:
+      jfrogml:
+        concurrency: 4
+        type: jfrogml
+        local:
+          anonymousEndpoints:
+            - .*/system/(ping|readiness|liveness)
+            - .*/v1/cert/root
+            - .*/v1/registry/join
+            - .*/v1/config/shared
+        remote:
+          url: https://api.qwak.com
+image:
+  registry: repo21edgesawseuw1.jfrog.io/enterprise-docker
+router:
+  serviceRegistry:
+    insecure: true
+  extraEnvironmentVariables:
+    - name: JF_BRIDGE_TUNNEL_CLIENT_BACKOFF_INITIALINTERVALMILLIS
+      value: '1000'
+    - name: JF_BRIDGE_TUNNEL_CLIENT_BACKOFF_MAXINTERVALMILLIS
+      value: '12000'
+    - name: JF_BRIDGE_TUNNEL_CLIENT_BACKOFF_MULTIPLIER
+      value: '2'
+extraSystemYaml:
+  bridge:
+    logging:
+      request:
+        verbose: true
+        tokenIdLoggingEnabled: true
+      application:
+        level: debug
