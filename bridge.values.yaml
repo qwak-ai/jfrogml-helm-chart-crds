@@ -29,11 +29,3 @@ router:
       value: '12000'
     - name: JF_BRIDGE_TUNNEL_CLIENT_BACKOFF_MULTIPLIER
       value: '2'
-extraSystemYaml:
-  bridge:
-    logging:
-      request:
-        verbose: true
-        tokenIdLoggingEnabled: true
-      application:
-        level: debug
