@@ -23,10 +23,13 @@ ascii_art='
 echo -e "${GREEN}$ascii_art${NC}"
 echo -e "${GREEN}Welcome to the JFrogML Installer!${NC}"
 echo "This script will perform the following actions:"
-echo "1. Check for already installed CRDs (Custom Resource Definitions) in your Kubernetes cluster."
-echo "2. Compare the versions of your installed CRDs with the expected versions."
-echo "3. Install required CRDs for JFrogML only if necessary."
-echo "4. Create the Kubernetes namespace 'jfrogml' if it doesn't already exist."
+echo "1. Check if the required tools (kubectl, helm, yq) are installed."
+echo "2. Verify the Kubernetes context and ensure you are using the correct cluster."
+echo "3. Check for already installed Custom Resource Definitions (CRDs) in your Kubernetes cluster."
+echo "4. Compare the versions of your installed CRDs with the expected versions."
+echo "5. Validate the Istio version installed in your cluster and ensure it is within the required range."
+echo "6. Install required CRDs for JFrogML only if they are not already installed."
+echo "7. Create the Kubernetes namespace 'jfrogml' if it doesn't already exist."
 echo -e "${NC}\n"
 
 # Ask the user if they want to proceed
@@ -114,7 +117,7 @@ check_istio_version() {
   # Filtering Istio images
   istio_images=$(echo "${images}" | grep -i istio)
   if [ -z "$istio_images" ]; then
-    echo "No Istio images found in the cluster."
+    echo "No Istio images found in the cluster. We can't detect istio version this way"
     return
   fi
   # DEBUG
