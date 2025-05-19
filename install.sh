@@ -329,6 +329,8 @@ main() {
   echo -e "\n"
   check_istio_crds
   echo -e "\n"
+  check_others_crds
+  echo -e "\n"
   check_jfrogml_namespace
 }
 main
