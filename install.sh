@@ -266,8 +266,7 @@ check_istio_crds() {
         done
         ;;
       [Nn]*)
-        echo -e "${RED}Installation canceled. Please install Istio CRDs for the required version or run the installation script again and accept the installation.${NC}"
-        exit 1
+        echo -e "${RED}Installation procceed without istio${NC}"
         ;;
       *)
         echo -e "Invalid input. Please enter ${GREEN}'y'${NC} for yes or ${RED}'n'${NC} for no."
