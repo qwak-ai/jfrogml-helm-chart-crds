@@ -319,6 +319,7 @@ check_jfrogml_namespace() {
   else
     echo "Creating namespace '$namespace'"
     kubectl create namespace "$namespace"
+    kubectl annotate namespace $namespace sidecar.istio.io/inject="true" --overwrite
     echo -e "${GREEN}Namespace '$namespace' created successfully.${NC}"
   fi
   echo -e "${GREEN}Installation script finished successfully.${NC}"
