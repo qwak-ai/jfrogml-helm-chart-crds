@@ -32,6 +32,20 @@ echo "6. Install required CRDs for JFrogML only if they are not already installe
 echo "7. Create the Kubernetes namespace 'jfrogml' if it doesn't already exist."
 echo -e "${NC}\n"
 
+
+read -p "What is your cloud provider? (aws/gcp): " choice
+case "$choice" in 
+  aws|AWS ) 
+      echo -e "Your cloud provider is ${GREEN}AWS${NC}"
+      export CLOUD_PROVIDER=AWS
+      ;;
+  gcp|GCP ) 
+      echo -e "Your cloud provider is ${GREEN}GCP${NC}"
+      export CLOUD_PROVIDER=GCP
+      ;;
+  * ) echo -e "${RED}Invalid choice. Please run the script again and type AWS or GCP.${NC}"; exit 1;;
+esac
+
 # Ask the user if they want to proceed
 read -p "Do you want to proceed? (y/n): " choice
 case "$choice" in 
@@ -102,8 +116,32 @@ yq_check() {
   fi
 }
 
+# Function to check if AWS Load Balancer Controller is installed
+is_aws_lb_controller_installed() {
+
+  if [ "$CLOUD_PROVIDER" != "AWS" ]; then
+    echo -e "${GREEN}No need to check AWS Load Balancer Controller since the cloud provider is not AWS.${NC}"
+    return 0
+  fi
+
+  # Define the CRDs to check for the AWS Load Balancer Controller
+  required_crds=(
+    "targetgroupbindings.elbv2.k8s.aws"
+  )
+
+  # Iterate through each required CRD and check if it exists
+  for crd in "${required_crds[@]}"; do
+    if ! kubectl get crd "$crd" &> /dev/null; then
+      echo -e "${RED}AWS Load Balancer Controller is NOT installed."${NC}
+      echo -e "Please install using https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/"
+      exit 1
+    fi
+  done
+}
+
 check_required_tools (){
   kubectl_check
+  is_aws_lb_controller_installed
   helm_check
   yq_check
 }
@@ -145,7 +183,7 @@ check_istio_version() {
     fi
       else
         echo "Multiple Istio versions detected:"
-        echo -e "Try to reinstall istio and use 1 versoin from : $MIN_REQUIRED_ISTIO_VERSION to $MAX_REQUIRED_ISTIO_VERSION"
+        echo -e "Try to reinstall istio and use 1 version from : $MIN_REQUIRED_ISTIO_VERSION to $MAX_REQUIRED_ISTIO_VERSION"
         exit 1
         echo "${tags}"
       fi
@@ -324,34 +362,6 @@ check_jfrogml_namespace() {
   fi
   echo -e "${GREEN}Installation script finished successfully.${NC}"
 }
-
-
-# Function to check if AWS Load Balancer Controller is installed
-is_aws_lb_controller_installed() {
-  # Define the CRDs to check for the AWS Load Balancer Controller
-  required_crds=(
-    "targetgroupbindings.elbv2.k8s.aws"
-  )
-
-  # Iterate through each required CRD and check if it exists
-  for crd in "${required_crds[@]}"; do
-    if ! kubectl get crd "$crd" &> /dev/null; then
-      echo "AWS Load Balancer Controller is NOT installed."
-      return 1
-    fi
-  done
-
-  echo "AWS Load Balancer Controller is installed."
-  return 0
-}
-
-is_aws_lb_controller_installed
-
-# Check the return status and exit if not installed
-if [ $? -ne 0 ]; then
-  echo "Exiting script because AWS Load Balancer Controller is not installed. Please install using https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/"
-  exit 1
-fi
 
 main() {
   check_required_tools
