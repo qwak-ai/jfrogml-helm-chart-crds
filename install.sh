@@ -20,6 +20,15 @@ ascii_art='
  #     # #       #   #  #    # #    # #     # #       
   #####  #       #    #  ####   ####  #     # ####### 
 '
+
+istio_ascii_art='
+  _____  _____ _______ _____ ____  
+ |_   _|/ ____|__   __|_   _/ __ \ 
+   | | | (___    | |    | || |  | |
+   | |  \___ \   | |    | || |  | |
+  _| |_ ____) |  | |   _| || |__| |
+ |_____|_____/   |_|  |_____\____/ 
+'
 echo -e "${GREEN}$ascii_art${NC}"
 echo -e "${GREEN}Welcome to the JFrogML Installer!${NC}"
 echo "This script will perform the following actions:"
@@ -279,9 +288,44 @@ fetch_and_parse_crd() {
   done
 }
 
+check_istio() {
+
+echo -e "${GREEN}$istio_ascii_art${NC}"
+echo -e "Welcome in Istio installation!"
+echo -e "Do you have istio installed in Kubernetes?"
+echo -e "If you choose ${YELLOW}yes${NC}, we will skip installation and procced, if you choose ${YELLOW}no${NC} we will try to install istio into your cluster"
+
+echo -e "\n"
+read -p "Do you want to install Istio? (yes/no): " istio_choice
+case "$istio_choice" in
+  yes|YES )
+    echo -e "${GREEN}Proceeding with Istio installation...${NC}"
+    # Example installation process for Istio (replace with actual commands)
+    echo "Installing Istio..."
+    ;;
+  no|NO )
+    echo -e "${GREEN}It looks like Istio is already installed on your system.${NC}"
+    echo -e "Please extend your istio configuration with next config..."
+    echo -e "\n"
+    echo -e 'extensionProviders:'
+    echo -e '- name: ext-authz-grpc'
+    echo -e '  envoyExtAuthzGrpc:'
+    echo -e '    service: "auth.jfrogml.svc.cluster.local"'
+    echo -e '    port: "6578"'
+    echo -e "\n"
+    echo -e "Choose 'Istio is already installed' in the UI."
+    ;;
+  * )
+    echo -e "${RED}Invalid choice. Please run the script again and type yes or no.${NC}"
+    exit 1
+    ;;
+esac
+
+
+}
+
 check_istio_crds() {
   check_istio_version
-
   echo "Checking Istio CRDs..."
   ISTIO_URL="https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/istio.yaml"
   local istio_missing_crds=()
@@ -364,14 +408,15 @@ check_jfrogml_namespace() {
 }
 
 main() {
-  check_required_tools
+  #check_required_tools
+  #echo -e "\n"
+  #check_k8s_context
+  #echo -e "\n"
+  #check_jfrogml_namespace
+  #echo -e "\n"
+  #check_others_crds
+  #echo -e "\n"
+  check_istio
   echo -e "\n"
-  check_k8s_context
-  echo -e "\n"
-  check_istio_crds
-  echo -e "\n"
-  check_others_crds
-  echo -e "\n"
-  check_jfrogml_namespace
 }
 main
