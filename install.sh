@@ -315,7 +315,6 @@ check_istio() {
 
 echo -e "${GREEN}$istio_ascii_art${NC}"
 echo -e "Welcome in Istio installation!"
-echo -e "Do you have istio installed in Kubernetes?"
 echo -e "If you choose ${YELLOW}yes${NC}, we will skip installation and procced, if you choose ${YELLOW}no${NC} we will try to install istio into your cluster"
 
 echo -e "\n"
