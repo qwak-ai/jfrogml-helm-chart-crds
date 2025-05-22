@@ -318,15 +318,15 @@ echo -e "Welcome in Istio installation!"
 echo -e "If you choose ${YELLOW}yes${NC}, we will skip installation and procced, if you choose ${YELLOW}no${NC} we will try to install istio into your cluster"
 
 echo -e "\n"
-read -p "Do you want to install Istio? (yes/no): " istio_choice
+read -p "Do you have Istio installed? (yes/no): " istio_choice
 case "$istio_choice" in
-  yes|YES )
+  no|NO|n)
     echo -e "${GREEN}Proceeding with Istio installation...${NC}"
-    # Example installation process for Istio (replace with actual commands)
     echo "Installing Istio..."
     install_istio_crds
     ;;
-  no|NO )
+  yes|YES|y)
+    check_istio_version
     echo -e "${GREEN}It looks like Istio is already installed on your system.${NC}"
     echo -e "Please extend your istio configuration with next config..."
     echo -e "\n"
@@ -439,11 +439,11 @@ main() {
   echo -e "\n"
   is_aws_lb_controller_installed
   echo -e "\n"
-  check_jfrogml_namespace
-  echo -e "\n"
   check_others_crds
   echo -e "\n"
   check_istio
+  echo -e "\n"
+  check_jfrogml_namespace
   echo -e "\n"
 }
 main
