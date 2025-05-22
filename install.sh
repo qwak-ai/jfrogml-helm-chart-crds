@@ -9,6 +9,39 @@ NC='\033[0m' # No Color
 MIN_REQUIRED_ISTIO_VERSION="1.18"
 MAX_REQUIRED_ISTIO_VERSION="1.24.3"
 
+
+compare_versions() {
+    if [[ "$1" == "$2" ]]; then
+        return 0
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do
+        ver1[i]=0
+    done
+    
+    for ((i=${#ver2[@]}; i<${#ver1[@]}; i++)); do
+        ver2[i]=0
+    done
+    
+    for ((i=0; i<${#ver1[@]}; i++)); do
+        if ((10#${ver1[i]} > 10#${ver2[i]})); then
+            return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]})); then
+            return 2
+        fi
+    done
+    
+    return 0
+}
+
+# Function to convert a string to uppercase
+to_uppercase() {
+    echo "$1" | tr '[:lower:]' '[:upper:]'
+}
+
 # ASCII Art for welcome sign
 ascii_art='
 
@@ -42,18 +75,34 @@ echo "7. Create the Kubernetes namespace 'jfrogml' if it doesn't already exist."
 echo -e "${NC}\n"
 
 
-read -p "What is your cloud provider? (aws/gcp): " choice
-case "$choice" in 
-  aws|AWS ) 
-      echo -e "Your cloud provider is ${GREEN}AWS${NC}"
-      export CLOUD_PROVIDER=AWS
-      ;;
-  gcp|GCP ) 
-      echo -e "Your cloud provider is ${GREEN}GCP${NC}"
-      export CLOUD_PROVIDER=GCP
-      ;;
-  * ) echo -e "${RED}Invalid choice. Please run the script again and type AWS or GCP.${NC}"; exit 1;;
-esac
+# cloud provider
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    key="$1"
+
+    case $key in
+        --cloud-provider)
+        CLOUD_PROVIDER="$2"
+        shift # past argument
+        shift # past value
+        ;;
+        *)    # unknown option
+        echo -e "${RED}Unknown option provided: $key${NC}"
+        exit 1
+        ;;
+    esac
+done
+
+if [ -z "$CLOUD_PROVIDER" ]; then
+    echo -e "${RED}Error: --cloud-provider argument is required (aws/gcp).${NC}"
+    exit 1
+elif [[ "$CLOUD_PROVIDER" != "aws" && "$CLOUD_PROVIDER" != "gcp" ]]; then
+    echo -e "${RED}Error: Invalid cloud provider. Expected 'aws' or 'gcp'.${NC}"
+    exit 1
+fi
+
+# Convert to uppercase to ensure consistency in the rest of the script
+CLOUD_PROVIDER=$(to_uppercase "$CLOUD_PROVIDER")
 
 # Ask the user if they want to proceed
 read -p "Do you want to proceed? (y/n): " choice
@@ -74,32 +123,7 @@ CRD_URLS=(
   #"https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/istio.yaml"
 )
 
-compare_versions() {
-    if [[ "$1" == "$2" ]]; then
-        return 0
-    fi
-    local IFS=.
-    local i ver1=($1) ver2=($2)
-    
-    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do
-        ver1[i]=0
-    done
-    
-    for ((i=${#ver2[@]}; i<${#ver1[@]}; i++)); do
-        ver2[i]=0
-    done
-    
-    for ((i=0; i<${#ver1[@]}; i++)); do
-        if ((10#${ver1[i]} > 10#${ver2[i]})); then
-            return 1
-        fi
-        if ((10#${ver1[i]} < 10#${ver2[i]})); then
-            return 2
-        fi
-    done
-    
-    return 0
-}
+
 
 kubectl_check() {
   if ! command -v kubectl &> /dev/null; then
@@ -302,6 +326,7 @@ case "$istio_choice" in
     echo -e "${GREEN}Proceeding with Istio installation...${NC}"
     # Example installation process for Istio (replace with actual commands)
     echo "Installing Istio..."
+    install_istio_crds
     ;;
   no|NO )
     echo -e "${GREEN}It looks like Istio is already installed on your system.${NC}"
@@ -324,7 +349,7 @@ esac
 
 }
 
-check_istio_crds() {
+install_istio_crds() {
   check_istio_version
   echo "Checking Istio CRDs..."
   ISTIO_URL="https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/istio.yaml"
@@ -408,14 +433,14 @@ check_jfrogml_namespace() {
 }
 
 main() {
-  #check_required_tools
-  #echo -e "\n"
-  #check_k8s_context
-  #echo -e "\n"
-  #check_jfrogml_namespace
-  #echo -e "\n"
-  #check_others_crds
-  #echo -e "\n"
+  check_required_tools
+  echo -e "\n"
+  check_k8s_context
+  echo -e "\n"
+  check_jfrogml_namespace
+  echo -e "\n"
+  check_others_crds
+  echo -e "\n"
   check_istio
   echo -e "\n"
 }
