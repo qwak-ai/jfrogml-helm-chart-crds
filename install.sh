@@ -77,8 +77,8 @@ welcome() {
   # Ask the user if they want to proceed
   read -p "Do you want to proceed? (y/n): " choice
   case "$choice" in 
-    y|Y ) echo -e "${GREEN}Proceeding with the installation...${NC}";;
-    n|N ) echo -e "${YELLOW}Installation aborted by user.${NC}"; exit 0;;
+    yes|y|Y|YES) echo -e "${GREEN}Proceeding with the installation...${NC}";;
+    no|n|N|NO) echo -e "${YELLOW}Installation aborted by user.${NC}"; exit 0;;
     * ) echo -e "${RED}Invalid choice. Please run the script again and choose either 'y' or 'n'.${NC}"; exit 1;;
   esac
 }
