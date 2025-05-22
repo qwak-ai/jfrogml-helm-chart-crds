@@ -9,7 +9,6 @@ NC='\033[0m' # No Color
 MIN_REQUIRED_ISTIO_VERSION="1.18"
 MAX_REQUIRED_ISTIO_VERSION="1.24.3"
 
-
 compare_versions() {
     if [[ "$1" == "$2" ]]; then
         return 0
@@ -42,38 +41,47 @@ to_uppercase() {
     echo "$1" | tr '[:lower:]' '[:upper:]'
 }
 
-# ASCII Art for welcome sign
-ascii_art='
+welcome() {
+  # ASCII Art for welcome sign
+  ascii_art='
+  
+         # #######                      #     # #       
+         # #       #####   ####   ####  ##   ## #       
+         # #       #    # #    # #    # # # # # #       
+         # #####   #    # #    # #      #  #  # #       
+   #     # #       #####  #    # #  ### #     # #       
+   #     # #       #   #  #    # #    # #     # #       
+    #####  #       #    #  ####   ####  #     # ####### 
+  '
+  
+  istio_ascii_art='
+    _____  _____ _______ _____ ____  
+   |_   _|/ ____|__   __|_   _/ __ \ 
+     | | | (___    | |    | || |  | |
+     | |  \___ \   | |    | || |  | |
+    _| |_ ____) |  | |   _| || |__| |
+   |_____|_____/   |_|  |_____\____/ 
+  '
+  echo -e "${GREEN}$ascii_art${NC}"
+  echo -e "${GREEN}Welcome to the JFrogML Installer!${NC}"
+  echo "This script will perform the following actions:"
+  echo "1. Check if the required tools (kubectl, helm, yq) are installed."
+  echo "2. Verify the Kubernetes context and ensure you are using the correct cluster."
+  echo "3. Check for already installed Custom Resource Definitions (CRDs) in your Kubernetes cluster."
+  echo "4. Compare the versions of your installed CRDs with the expected versions."
+  echo "5. Validate the Istio version installed in your cluster and ensure it is within the required range."
+  echo "6. Install required CRDs for JFrogML only if they are not already installed."
+  echo "7. Create the Kubernetes namespace 'jfrogml' if it doesn't already exist."
+  echo -e "${NC}\n"
 
-       # #######                      #     # #       
-       # #       #####   ####   ####  ##   ## #       
-       # #       #    # #    # #    # # # # # #       
-       # #####   #    # #    # #      #  #  # #       
- #     # #       #####  #    # #  ### #     # #       
- #     # #       #   #  #    # #    # #     # #       
-  #####  #       #    #  ####   ####  #     # ####### 
-'
-
-istio_ascii_art='
-  _____  _____ _______ _____ ____  
- |_   _|/ ____|__   __|_   _/ __ \ 
-   | | | (___    | |    | || |  | |
-   | |  \___ \   | |    | || |  | |
-  _| |_ ____) |  | |   _| || |__| |
- |_____|_____/   |_|  |_____\____/ 
-'
-echo -e "${GREEN}$ascii_art${NC}"
-echo -e "${GREEN}Welcome to the JFrogML Installer!${NC}"
-echo "This script will perform the following actions:"
-echo "1. Check if the required tools (kubectl, helm, yq) are installed."
-echo "2. Verify the Kubernetes context and ensure you are using the correct cluster."
-echo "3. Check for already installed Custom Resource Definitions (CRDs) in your Kubernetes cluster."
-echo "4. Compare the versions of your installed CRDs with the expected versions."
-echo "5. Validate the Istio version installed in your cluster and ensure it is within the required range."
-echo "6. Install required CRDs for JFrogML only if they are not already installed."
-echo "7. Create the Kubernetes namespace 'jfrogml' if it doesn't already exist."
-echo -e "${NC}\n"
-
+  # Ask the user if they want to proceed
+  read -p "Do you want to proceed? (y/n): " choice
+  case "$choice" in 
+    y|Y ) echo -e "${GREEN}Proceeding with the installation...${NC}";;
+    n|N ) echo -e "${YELLOW}Installation aborted by user.${NC}"; exit 0;;
+    * ) echo -e "${RED}Invalid choice. Please run the script again and choose either 'y' or 'n'.${NC}"; exit 1;;
+  esac
+}
 
 # cloud provider
 # Parse command line arguments
@@ -103,14 +111,6 @@ fi
 
 # Convert to uppercase to ensure consistency in the rest of the script
 CLOUD_PROVIDER=$(to_uppercase "$CLOUD_PROVIDER")
-
-# Ask the user if they want to proceed
-read -p "Do you want to proceed? (y/n): " choice
-case "$choice" in 
-  y|Y ) echo -e "${GREEN}Proceeding with the installation...${NC}";;
-  n|N ) echo -e "${YELLOW}Installation aborted by user.${NC}"; exit 0;;
-  * ) echo -e "${RED}Invalid choice. Please run the script again and choose either 'y' or 'n'.${NC}"; exit 1;;
-esac
 
 # URLs of CRD YAMLs
 CRD_URLS=(
@@ -174,7 +174,6 @@ is_aws_lb_controller_installed() {
 
 check_required_tools (){
   kubectl_check
-  is_aws_lb_controller_installed
   helm_check
   yq_check
 }
@@ -435,7 +434,11 @@ check_jfrogml_namespace() {
 main() {
   check_required_tools
   echo -e "\n"
+  welcome
+  echo -e "\n"
   check_k8s_context
+  echo -e "\n"
+  is_aws_lb_controller_installed
   echo -e "\n"
   check_jfrogml_namespace
   echo -e "\n"
