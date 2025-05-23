@@ -1,0 +1,137 @@
+#!/usr/bin/expect
+#
+set timeout 3
+
+# Create a unique temporary directory
+set unixtime [exec date +%s]
+set tmpdir "/tmp/tmp_${unixtime}"
+
+# Create the directory
+exec mkdir -p $tmpdir
+
+# Function to get the path of a tool using `which`
+proc get_tool_path {tool_name} {
+    # If the tool is not found, return an empty string
+    if {[catch {exec which $tool_name} result]} {
+        return ""
+    }
+    return $result
+}
+
+# Get the paths to the tools
+set kubectl_path [get_tool_path "kubectl"]
+set helm_path [get_tool_path "helm"]
+set yq_path [get_tool_path "yq"]
+set tr_path [get_tool_path "tr"]
+
+# Print the paths for verification
+puts "kubectl path: $kubectl_path"
+puts "helm path: $helm_path"
+puts "yq path: $yq_path"
+puts "tr path: $tr_path"
+
+# Check if any of the tools are not found
+if {$kubectl_path eq "" || $helm_path eq "" || $yq_path eq "" || $tr_path eq "" } {
+    puts "One or more tools (kubectl, helm, yq, tr) are not found in the PATH. Exiting."
+    exit 1
+}
+
+# Add a global timeout of 30 seconds for this extended test
+set timeout 30
+
+# Verbose output to follow steps
+puts "Temporary directory created: $tmpdir"
+
+# Function to resolve the full path for symbolic links
+proc resolve_link {link_path} {
+    set target [file readlink $link_path]
+    if {[string match /* $target]} {
+        # Absolute path
+        return $target
+    } else {
+        # Relative path, resolve relative to the directory containing the link
+        set dir [file dirname $link_path]
+        set resolved_path [exec realpath $dir/$target]
+        return $resolved_path
+    }
+}
+
+# Function to copy a tool and run the script
+proc copy_and_run {tool_path tmpdir expected_error} {
+    set tool_name [file tail $tool_path]
+    set tool_target "$tmpdir/$tool_name"
+
+    # Verify if the source file exists
+    if {[file exists $tool_path]} {
+        # Check if the file is a symlink
+        if {[file type $tool_path] eq "link"} {
+            puts "$tool_path is a symbolic link"
+            set actual_path [resolve_link $tool_path]
+            puts "$tool_path points to $actual_path"
+            if {[file exists $actual_path]} {
+                set tool_path $actual_path
+            } else {
+                puts "The target of the symbolic link $tool_path does not exist. Exiting."
+                exit 1
+            }
+        }
+
+        # Ensure the source file has read permissions
+        file copy -force $tool_path $tool_target
+        
+        # Check if the file was copied successfully
+        if {[file exists $tool_target]} {
+            file attributes $tool_target -permissions 755
+            puts "Copied $tool_path to $tool_target and made it executable"
+        } else {
+            puts "Failed to copy $tool_path to $tool_target. Exiting."
+            exit 1
+        }
+    } else {
+        puts "Tool path $tool_path does not exist. Exiting."
+        exit 1
+    }
+
+    # Construct a new PATH with only the temporary directory and necessary system paths
+    set new_path "$tmpdir:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    spawn bash -c "PATH=$new_path ../install.sh --cloud-provider aws"
+
+    if {$expected_error ne ""} {
+        expect {
+            $expected_error {
+                puts "Expected string found: $expected_error"
+                exp_continue
+            }
+            timeout {
+                puts "Timeout occurred while waiting for expected string."
+                send_user "\nExpected string: $expected_error\n"
+                exit 1
+            }
+            eof
+        }
+    } else {
+        expect eof
+    }
+}
+
+# Copy tr and check kubectl
+puts "***** Checking for kubectl *****"
+copy_and_run $tr_path $tmpdir "ERROR: kubectl is not installed or not in PATH."
+
+# Copy `kubectl` and check for `helm`
+puts "***** Checking for helm *****"
+copy_and_run $kubectl_path $tmpdir "ERROR: helm is not installed or not in PATH."
+
+# Copy `helm` and check for `yq`
+puts "***** Checking for yq *****"
+copy_and_run $helm_path $tmpdir "ERROR: yq is not installed or not in PATH."
+
+# Copy `yq` and run the script to pass all checks
+puts "***** Running the script with all tools *****"
+copy_and_run $yq_path $tmpdir ""
+
+# Clean up the temporary directory
+puts "Cleaning up temporary directory: $tmpdir"
+exec rm -rf $tmpdir
+
+puts "All tool checks passed successfully."

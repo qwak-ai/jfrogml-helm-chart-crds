@@ -1,0 +1,24 @@
+#!/usr/bin/expect
+set timeout 3
+
+
+# Test case for no cloud provider argument provided
+spawn ../install.sh
+expect "Error: --cloud-provider argument is required (aws/gcp)."
+expect eof
+
+# Test case for providing invalid cloud provider argument
+spawn ../install.sh --cloud-provider invalidprovider
+expect "Error: Invalid cloud provider. Expected 'aws' or 'gcp'."
+expect eof
+
+## Test case for providing valid cloud provider argument
+spawn ../install.sh --cloud-provider gcp
+expect "Do you want to proceed? (y/n):"
+expect eof
+
+
+# Test case for providing valid cloud provider argument
+spawn ../install.sh --cloud-provider aws
+expect "Do you want to proceed? (y/n):"
+expect eof

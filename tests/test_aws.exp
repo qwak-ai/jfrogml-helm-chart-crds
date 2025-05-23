@@ -1,0 +1,27 @@
+#!/usr/bin/expect
+
+set timeout 3
+
+# Start AWS flow negative
+spawn ../install.sh --cloud-provider aws
+# Assuming tool checks are the first interactive part
+expect {
+    "Do you want to proceed? (y/n): " {
+      send "n\r"
+      expect "Installation aborted by user."
+      expect eof
+    }
+}
+
+# Start AWS flow positive
+spawn ../install.sh --cloud-provider aws
+# Assuming tool checks are the first interactive part
+expect {
+    "Do you want to proceed? (y/n): " {
+      send "y\r"
+      expect "Proceeding with the installation..."
+      expect "Is this the correct context? (y/n):"
+      send "y\r"
+      expect eof
+    }
+}

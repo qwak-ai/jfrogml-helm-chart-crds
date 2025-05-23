@@ -269,7 +269,6 @@ extract_resource_by_name() {
 install_crd() {
   local crd_url="$1"
   local resource_name="$2"
-  #echo -e "Applying CRD from: ${GREEN}$crd_url${NC}"
   # Download the CRD file
   local crd_file=$(mktemp)
   curl -s -o "$crd_file" "$crd_url"
@@ -292,18 +291,29 @@ install_crd() {
 
 fetch_and_parse_crd() {
   local url=$1
-  ### DEBUG
-  #echo "Processing $url"
-  # Fetch the CRD file content
   CRD_CONTENT=$(curl -sSL "$url")
-  # Parse the CRD names using yq
   resources=($(echo "$CRD_CONTENT" | yq eval '.metadata.name // "---"' - | grep -v '^---$'))
-  ### DEBUG
-  #echo ${resources[@]}
-  # Check if each CRD exists in the cluster
+
   for resource in "${resources[@]}"; do
     if kubectl get crd "$resource" > /dev/null 2>&1; then
-      echo -e "CRD '${GREEN}$resource${NC}' exists in the cluster."
+      #echo -e "CRD '${GREEN}$resource${NC}' exists in the cluster."
+
+      # Fetch the installed CRD spec
+      installed_crd=$(kubectl get crd "$resource" -o yaml)
+      installed_spec=$(echo "$installed_crd" | yq e ".spec | del(.conversion)" -)
+      
+      # Fetch the spec from the provided URL
+      manifest_spec=$(echo "$CRD_CONTENT" | yq e "select(.metadata.name == \"$resource\").spec | del(.conversion)" -)
+
+      # Compare the specs using diff
+      if diff <(echo "$installed_spec") <(echo "$manifest_spec") > /dev/null; then
+        echo -e "CRD '${GREEN}$resource${NC}' is up-to-date."
+      else
+        echo -e "CRD '${YELLOW}$resource${NC}' is different from the provided one. Differences:"
+        # DEBUG show diff
+        #diff <(echo "$installed_spec") <(echo "$manifest_spec") | sed 's/^/    /'
+        DIFFERENT_CRDS+=("$resource#$url")
+      fi
     else
       echo -e "CRD '${RED}$resource${NC}' is missing in the cluster."
       MISSING_CRDS+=("$resource#$url")
@@ -386,10 +396,11 @@ install_istio_crds() {
 check_others_crds() {
   echo "Checking installed CRDs..."
   declare -a MISSING_CRDS
+  declare -a DIFFERENT_CRDS
   for url in "${CRD_URLS[@]}"; do
     fetch_and_parse_crd "$url"
   done
-  if [ ${#MISSING_CRDS[@]} -gt 0 ]; then
+  if [ ${#MISSING_CRDS[@]} -gt 0 ] || [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
     echo -e "\nThe following CRDs are missing and need to be installed:"
     for item in "${MISSING_CRDS[@]}"; do
       IFS="#" read -r resource _ <<< "$item"
@@ -400,7 +411,11 @@ check_others_crds() {
         [Yy]*)
             for item in "${MISSING_CRDS[@]}"; do
               IFS="#" read -r resource url <<< "$item"
-              install_crd "$url" "$resource" && echo -e "CRD '${GREEN}$resource${NC}' installed successfully"
+              install_crd "$url" "$resource" && echo -e "missing CRD '${GREEN}$resource${NC}' installed successfully"
+            done
+            for item in "${DIFFERENT_CRDS[@]}"; do
+              IFS="#" read -r resource url <<< "$item"
+              install_crd "$url" "$resource" && echo -e "different CRD '${GREEN}$resource${NC}' installed successfully"
             done
             ;;
         [Nn]*)
@@ -437,7 +452,7 @@ main() {
   echo -e "\n"
   check_k8s_context
   echo -e "\n"
-  is_aws_lb_controller_installed
+  #is_aws_lb_controller_installed
   echo -e "\n"
   check_others_crds
   echo -e "\n"
