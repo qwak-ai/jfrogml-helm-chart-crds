@@ -211,10 +211,10 @@ check_istio_version() {
     if [[ $is_min_version_ok -ne 2 && $is_max_version_ok -ne 1 ]]; then
         echo "Your version $version is within the required range."
     else
-        echo "Your version $version is not within the required range."
+        echo -e ${GREEN}"Your version $version is not within the required range."${NC}
     fi
       else
-        echo "Multiple Istio versions detected:"
+        echo -e ${YELLOW}"Multiple Istio versions detected:"${NC}
         echo -e "Try to reinstall istio and use 1 version from : $MIN_REQUIRED_ISTIO_VERSION to $MAX_REQUIRED_ISTIO_VERSION"
         exit 1
         echo "${tags}"
@@ -336,7 +336,7 @@ case "$istio_choice" in
     echo -e '    service: "auth.jfrogml.svc.cluster.local"'
     echo -e '    port: "6578"'
     echo -e "\n"
-    echo -e "Choose 'Istio is already installed' in the UI."
+    echo -e "Choose ${GREEN}'Istio is already installed'${NC} in the UI."
     ;;
   * )
     echo -e "${RED}Invalid choice. Please run the script again and type yes or no.${NC}"
