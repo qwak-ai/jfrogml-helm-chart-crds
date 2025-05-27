@@ -475,9 +475,9 @@ main() {
   echo -e "\n"
   check_k8s_context
   echo -e "\n"
-  #is_aws_lb_controller_installed
+  is_aws_lb_controller_installed
   echo -e "\n"
-  #check_others_crds
+  check_others_crds
   echo -e "\n"
   check_istio
   echo -e "\n"
