@@ -26,3 +26,11 @@ image:
 router:
   serviceRegistry:
     insecure: true
+extraSystemYaml:
+  bridge:
+    logging:
+      request:
+        verbose: true
+        tokenIdLoggingEnabled: true
+      application:
+        level: debug
