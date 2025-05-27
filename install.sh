@@ -309,8 +309,9 @@ fetch_and_parse_crd() {
       if diff <(echo "$installed_spec") <(echo "$manifest_spec") > /dev/null; then
         echo -e "CRD '${GREEN}$resource${NC}' is up-to-date."
       else
-        echo -e "CRD '${YELLOW}$resource${NC}' is different from the provided one. Differences:"
+        echo -e "CRD '${YELLOW}$resource${NC}' required update"
         # DEBUG show diff
+        # echo -e "DEBUG diff:"
         #diff <(echo "$installed_spec") <(echo "$manifest_spec") | sed 's/^/    /'
         DIFFERENT_CRDS+=("$resource#$url")
       fi
@@ -325,7 +326,6 @@ check_istio() {
 
 echo -e "${GREEN}$istio_ascii_art${NC}"
 echo -e "Welcome in Istio installation!"
-echo -e "If you choose ${YELLOW}yes${NC}, we will skip installation and procced, if you choose ${YELLOW}no${NC} we will try to install istio into your cluster"
 
 echo -e "\n"
 read -p "Do you have Istio installed? (yes/no): " istio_choice
@@ -338,14 +338,6 @@ case "$istio_choice" in
   yes|YES|y)
     check_istio_version
     echo -e "${GREEN}It looks like Istio is already installed on your system.${NC}"
-    echo -e "Please extend your istio configuration with next config..."
-    echo -e "\n"
-    echo -e 'extensionProviders:'
-    echo -e '- name: ext-authz-grpc'
-    echo -e '  envoyExtAuthzGrpc:'
-    echo -e '    service: "auth.jfrogml.svc.cluster.local"'
-    echo -e '    port: "6578"'
-    echo -e "\n"
     echo -e "Choose ${GREEN}'Istio is already installed'${NC} in the UI."
     ;;
   * )
@@ -353,8 +345,6 @@ case "$istio_choice" in
     exit 1
     ;;
 esac
-
-
 }
 
 install_istio_crds() {
@@ -400,22 +390,33 @@ check_others_crds() {
   for url in "${CRD_URLS[@]}"; do
     fetch_and_parse_crd "$url"
   done
-  if [ ${#MISSING_CRDS[@]} -gt 0 ] || [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+  if [ ${#MISSING_CRDS[@]} -gt 0 ]; then
     echo -e "\nThe following CRDs are missing and need to be installed:"
     for item in "${MISSING_CRDS[@]}"; do
-      IFS="#" read -r resource _ <<< "$item"
-      echo -e "- ${resource}"
+      IFS="#" read -r resource url <<< "$item"
+      echo -e "- ${YELLOW}${resource}${NC}"
     done
-    read -p "Do you want to install these missing CRDs? (y/n): " user_input
+  fi
+
+  if [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+    echo -e "\nThe following CRDs are different and need to be updated:"
+    for item in "${DIFFERENT_CRDS[@]}"; do
+      IFS="#" read -r resource url <<< "$item"
+      echo -e "- ${YELLOW}${resource}${NC}"
+    done
+  fi
+
+  if [ ${#MISSING_CRDS[@]} -gt 0 ] || [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+    read -p "Do you want to install or update these CRDs? (y/n): " user_input
     case $user_input in
         [Yy]*)
             for item in "${MISSING_CRDS[@]}"; do
               IFS="#" read -r resource url <<< "$item"
-              install_crd "$url" "$resource" && echo -e "missing CRD '${GREEN}$resource${NC}' installed successfully"
+              install_crd "$url" "$resource" && echo -e "Missing CRD '${GREEN}$resource${NC}' installed successfully"
             done
             for item in "${DIFFERENT_CRDS[@]}"; do
               IFS="#" read -r resource url <<< "$item"
-              install_crd "$url" "$resource" && echo -e "different CRD '${GREEN}$resource${NC}' installed successfully"
+              install_crd "$url" "$resource" && echo -e "Different CRD '${GREEN}$resource${NC}' updated successfully"
             done
             ;;
         [Nn]*)
@@ -428,7 +429,7 @@ check_others_crds() {
             ;;
     esac
   else
-    echo -e "${GREEN}No missing CRDs detected.${NC}"
+    echo -e "${GREEN}No missing CRDs or updates required.${NC}"
   fi
 }
 
