@@ -300,11 +300,11 @@ fetch_and_parse_crd() {
       #echo -e "CRD '${GREEN}$resource${NC}' exists in the cluster."
 
       # Fetch the installed CRD spec
-      installed_crd=$(kubectl get crd "$resource" -o yaml)
-      installed_spec=$(echo "$installed_crd" | yq e ".spec | del(.conversion)" -)
+      installed_crd=$(kubectl get crd "$resource" -o json | jq -S )
+      installed_spec=$(echo "$installed_crd" | yq e -o=json ".spec | del(.conversion)" - | jq -S)
       
       # Fetch the spec from the provided URL
-      manifest_spec=$(echo "$CRD_CONTENT" | yq e "select(.metadata.name == \"$resource\").spec | del(.conversion)" -)
+      manifest_spec=$(echo "$CRD_CONTENT" | yq e -o=json "select(.metadata.name == \"$resource\").spec | del(.conversion)" - | jq -S)
 
       # Compare the specs using diff
       if diff <(echo "$installed_spec") <(echo "$manifest_spec") > /dev/null; then
@@ -312,7 +312,7 @@ fetch_and_parse_crd() {
       else
         echo -e "CRD '${YELLOW}$resource${NC}' required update"
         # DEBUG show diff
-        # echo -e "DEBUG diff:"
+        #echo -e "DEBUG diff:"
         #diff <(echo "$installed_spec") <(echo "$manifest_spec") | sed 's/^/    /'
         DIFFERENT_CRDS+=("$resource#$url")
       fi
@@ -484,4 +484,5 @@ main() {
   check_jfrogml_namespace
   echo -e "\n"
 }
+
 main
