@@ -212,6 +212,7 @@ check_istio_version() {
         echo "Your version $version is within the required range."
     else
         echo -e ${GREEN}"Your version $version is not within the required range."${NC}
+        ISTIO_IS_OK=1
     fi
       else
         echo -e ${YELLOW}"Multiple Istio versions detected:"${NC}
@@ -348,38 +349,59 @@ esac
 }
 
 install_istio_crds() {
+  # Clear and re-declare arrays
+  # need to rewrite in the future
+  unset MISSING_CRDS
+  unset DIFFERENT_CRDS
+  declare -a MISSING_CRDS
+  declare -a DIFFERENT_CRDS
+
   check_istio_version
   echo "Checking Istio CRDs..."
   ISTIO_URL="https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/istio.yaml"
   local istio_missing_crds=()
   # Fetch and parse Istio CRDs
   fetch_and_parse_crd "$ISTIO_URL"
-  for crd in "${resources[@]}"; do
-    if ! kubectl get crd "$crd" > /dev/null 2>&1; then
-      echo -e "Istio CRD '${RED}$crd${NC}' is missing."
-      istio_missing_crds+=("$crd")
-    fi
-  done
+  if [ ${#MISSING_CRDS[@]} -gt 0 ]; then
+    echo -e "\nThe following CRDs are missing and need to be installed:"
+    for item in "${MISSING_CRDS[@]}"; do
+      IFS="#" read -r resource url <<< "$item"
+      echo -e "- ${YELLOW}${resource}${NC}"
+    done
+  fi
 
-  if [ ${#istio_missing_crds[@]} -gt 0 ]; then
-    read -p "Do you want to install Istio CRDs? (y/n): " user_input
+  if [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+    echo -e "\nThe following CRDs are different and need to be updated:"
+    for item in "${DIFFERENT_CRDS[@]}"; do
+      IFS="#" read -r resource url <<< "$item"
+      echo -e "- ${YELLOW}${resource}${NC}"
+    done
+  fi
+
+  if [ ${#MISSING_CRDS[@]} -gt 0 ] || [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+    read -p "Do you want to install or update these CRDs? (y/n): " user_input
     case $user_input in
-      [Yy]*)
-        echo "Installing Istio CRDs..."
-        for crd in "${istio_missing_crds[@]}"; do
-          install_crd "$ISTIO_URL" "$crd" && echo -e "Istio CRD '${GREEN}$crd${NC}' installed successfully"
-        done
-        ;;
-      [Nn]*)
-        echo -e "${RED}Installation procceed without istio${NC}"
-        ;;
-      *)
-        echo -e "Invalid input. Please enter ${GREEN}'y'${NC} for yes or ${RED}'n'${NC} for no."
-        exit 1
-        ;;
+        [Yy]*)
+            for item in "${MISSING_CRDS[@]}"; do
+              IFS="#" read -r resource url <<< "$item"
+              install_crd "$ISTIO_URL" "$resource" && echo -e "Istio CRD '${GREEN}$resource${NC}' installed successfully"
+            done
+            for item in "${DIFFERENT_CRDS[@]}"; do
+              IFS="#" read -r resource url <<< "$item"
+              install_crd "$ISTIO_URL" "$resource" && echo -e "Different Istio CRD '${GREEN}$resource${NC}' updated successfully"
+            done
+            ;;
+        [Nn]*)
+            echo -e "${RED}Installation is canceled.${NC}"
+            exit 1
+            ;;
+        *)
+            echo -e "Invalid input. Please enter ${GREEN}'y'${NC} for yes or ${RED}'n'${NC} for no."
+            exit 1
+            ;;
     esac
   else
-    echo -e "${GREEN}All required Istio CRDs are present.${NC}"
+    echo -e "${GREEN}No missing CRDs or updates required.${NC}"
   fi
 }
 
@@ -453,9 +475,9 @@ main() {
   echo -e "\n"
   check_k8s_context
   echo -e "\n"
-  is_aws_lb_controller_installed
+  #is_aws_lb_controller_installed
   echo -e "\n"
-  check_others_crds
+  #check_others_crds
   echo -e "\n"
   check_istio
   echo -e "\n"
