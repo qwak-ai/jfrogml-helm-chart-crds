@@ -329,14 +329,14 @@ echo -e "${GREEN}$istio_ascii_art${NC}"
 echo -e "Welcome in Istio installation!"
 
 echo -e "\n"
-read -p "Do you have Istio installed? (yes/no): " istio_choice
+read -p "Do you want to install Istio? (yes/no): " istio_choice
 case "$istio_choice" in
-  no|NO|n)
+  yes|YES|y)
     echo -e "${GREEN}Proceeding with Istio installation...${NC}"
     echo "Installing Istio..."
     install_istio_crds
     ;;
-  yes|YES|y)
+  no|NO|n)
     check_istio_version
     echo -e "${GREEN}It looks like Istio is already installed on your system.${NC}"
     echo -e "Choose ${GREEN}'Istio is already installed'${NC} in the UI."
