@@ -463,6 +463,7 @@ check_jfrogml_namespace() {
     echo "Creating namespace '$namespace'"
     kubectl create namespace "$namespace"
     kubectl label namespace $namespace istio-injection=enabled --overwrite
+    kubectl label namespace $namespace jfrog.com/monitoring=active --overwrite
     echo -e "${GREEN}Namespace '$namespace' created successfully.${NC}"
   fi
   echo -e "${GREEN}Installation script finished successfully.${NC}"
