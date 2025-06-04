@@ -28,6 +28,8 @@ router:
     insecure: true
 extraSystemYaml:
   bridge:
+    jfConnectClient:
+      centralAccessTokenService: "generic"
     logging:
       request:
         verbose: true
