@@ -493,9 +493,10 @@ check_prometheus_crds() {
     done
   done
 
-  # If Prometheus CRDs are found, prompt the user
   if [ ${#found_prometheus_crds[@]} -gt 0 ]; then
-    echo -e "${GREEN}We see that you have Prometheus installed in your system.${NC}"
+    echo -e "${GREEN}Prometheus CRDs are already installed in your system. Skipping the installation.${NC}"
+  else
+    echo -e "${YELLOW}No existing Prometheus CRDs found in your system.${NC}"
     read -p "Do you want to install our Prometheus CRDs (y/n): " choice
     case "$choice" in
       yes|y|Y|YES)
@@ -507,14 +508,13 @@ check_prometheus_crds() {
         ;;
       no|n|N|NO)
         echo -e "${YELLOW}Installation of Prometheus CRDs aborted by user.${NC}"
+        exit 1
         ;;
-      * )
+      *)
         echo -e "${RED}Invalid choice. Please run the script again and choose either 'y' or 'n'.${NC}"
         exit 1
         ;;
     esac
-  else
-    echo -e "${YELLOW}No existing Prometheus CRDs found in your system.${NC}"
   fi
 }
 
