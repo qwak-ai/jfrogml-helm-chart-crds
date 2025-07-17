@@ -118,7 +118,6 @@ CRD_URLS=(
   "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-servicemonitors.yaml"
   "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-prometheusrules.yaml"
   "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/kafka.yaml"
-  "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/victoria-metrics.yaml"
   "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/elasticsearch.yaml"
   #"https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/istio.yaml"
 )
