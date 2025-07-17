@@ -114,9 +114,9 @@ CLOUD_PROVIDER=$(to_uppercase "$CLOUD_PROVIDER")
 
 # URLs of CRD YAMLs
 CRD_URLS=(
-  "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-podmonitors.yaml"
-  "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-servicemonitors.yaml"
-  "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-prometheusrules.yaml"
+  #"https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-podmonitors.yaml"
+  #"https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-servicemonitors.yaml"
+  #"https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-prometheusrules.yaml"
   "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/kafka.yaml"
   "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/elasticsearch.yaml"
   #"https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/istio.yaml"
@@ -211,6 +211,7 @@ check_istio_version() {
         echo "Your version $version is within the required range."
     else
         echo -e ${GREEN}"Your version $version is not within the required range."${NC}
+        ISTIO_IS_OK=1
     fi
       else
         echo -e ${YELLOW}"Multiple Istio versions detected:"${NC}
@@ -298,18 +299,19 @@ fetch_and_parse_crd() {
       #echo -e "CRD '${GREEN}$resource${NC}' exists in the cluster."
 
       # Fetch the installed CRD spec
-      installed_crd=$(kubectl get crd "$resource" -o yaml)
-      installed_spec=$(echo "$installed_crd" | yq e ".spec | del(.conversion)" -)
+      installed_crd=$(kubectl get crd "$resource" -o json | jq -S )
+      installed_spec=$(echo "$installed_crd" | yq e -o=json ".spec | del(.conversion)" - | jq -S)
       
       # Fetch the spec from the provided URL
-      manifest_spec=$(echo "$CRD_CONTENT" | yq e "select(.metadata.name == \"$resource\").spec | del(.conversion)" -)
+      manifest_spec=$(echo "$CRD_CONTENT" | yq e -o=json "select(.metadata.name == \"$resource\").spec | del(.conversion)" - | jq -S)
 
       # Compare the specs using diff
       if diff <(echo "$installed_spec") <(echo "$manifest_spec") > /dev/null; then
         echo -e "CRD '${GREEN}$resource${NC}' is up-to-date."
       else
-        echo -e "CRD '${YELLOW}$resource${NC}' is different from the provided one. Differences:"
+        echo -e "CRD '${YELLOW}$resource${NC}' required update"
         # DEBUG show diff
+        #echo -e "DEBUG diff:"
         #diff <(echo "$installed_spec") <(echo "$manifest_spec") | sed 's/^/    /'
         DIFFERENT_CRDS+=("$resource#$url")
       fi
@@ -324,27 +326,18 @@ check_istio() {
 
 echo -e "${GREEN}$istio_ascii_art${NC}"
 echo -e "Welcome in Istio installation!"
-echo -e "If you choose ${YELLOW}yes${NC}, we will skip installation and procced, if you choose ${YELLOW}no${NC} we will try to install istio into your cluster"
 
 echo -e "\n"
-read -p "Do you have Istio installed? (yes/no): " istio_choice
+read -p "Do you want to install Istio? (yes/no): " istio_choice
 case "$istio_choice" in
-  no|NO|n)
+  yes|YES|y)
     echo -e "${GREEN}Proceeding with Istio installation...${NC}"
     echo "Installing Istio..."
     install_istio_crds
     ;;
-  yes|YES|y)
+  no|NO|n)
     check_istio_version
     echo -e "${GREEN}It looks like Istio is already installed on your system.${NC}"
-    echo -e "Please extend your istio configuration with next config..."
-    echo -e "\n"
-    echo -e 'extensionProviders:'
-    echo -e '- name: ext-authz-grpc'
-    echo -e '  envoyExtAuthzGrpc:'
-    echo -e '    service: "auth.jfrogml.svc.cluster.local"'
-    echo -e '    port: "6578"'
-    echo -e "\n"
     echo -e "Choose ${GREEN}'Istio is already installed'${NC} in the UI."
     ;;
   * )
@@ -352,69 +345,49 @@ case "$istio_choice" in
     exit 1
     ;;
 esac
-
-
 }
 
 install_istio_crds() {
+  # Clear and re-declare arrays
+  # need to rewrite in the future
+  unset MISSING_CRDS
+  unset DIFFERENT_CRDS
+  declare -a MISSING_CRDS
+  declare -a DIFFERENT_CRDS
+
   check_istio_version
   echo "Checking Istio CRDs..."
   ISTIO_URL="https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/istio.yaml"
   local istio_missing_crds=()
   # Fetch and parse Istio CRDs
   fetch_and_parse_crd "$ISTIO_URL"
-  for crd in "${resources[@]}"; do
-    if ! kubectl get crd "$crd" > /dev/null 2>&1; then
-      echo -e "Istio CRD '${RED}$crd${NC}' is missing."
-      istio_missing_crds+=("$crd")
-    fi
-  done
-
-  if [ ${#istio_missing_crds[@]} -gt 0 ]; then
-    read -p "Do you want to install Istio CRDs? (y/n): " user_input
-    case $user_input in
-      [Yy]*)
-        echo "Installing Istio CRDs..."
-        for crd in "${istio_missing_crds[@]}"; do
-          install_crd "$ISTIO_URL" "$crd" && echo -e "Istio CRD '${GREEN}$crd${NC}' installed successfully"
-        done
-        ;;
-      [Nn]*)
-        echo -e "${RED}Installation procceed without istio${NC}"
-        ;;
-      *)
-        echo -e "Invalid input. Please enter ${GREEN}'y'${NC} for yes or ${RED}'n'${NC} for no."
-        exit 1
-        ;;
-    esac
-  else
-    echo -e "${GREEN}All required Istio CRDs are present.${NC}"
-  fi
-}
-
-check_others_crds() {
-  echo "Checking installed CRDs..."
-  declare -a MISSING_CRDS
-  declare -a DIFFERENT_CRDS
-  for url in "${CRD_URLS[@]}"; do
-    fetch_and_parse_crd "$url"
-  done
-  if [ ${#MISSING_CRDS[@]} -gt 0 ] || [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+  if [ ${#MISSING_CRDS[@]} -gt 0 ]; then
     echo -e "\nThe following CRDs are missing and need to be installed:"
     for item in "${MISSING_CRDS[@]}"; do
-      IFS="#" read -r resource _ <<< "$item"
-      echo -e "- ${resource}"
+      IFS="#" read -r resource url <<< "$item"
+      echo -e "- ${YELLOW}${resource}${NC}"
     done
-    read -p "Do you want to install these missing CRDs? (y/n): " user_input
+  fi
+
+  if [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+    echo -e "\nThe following CRDs are different and need to be updated:"
+    for item in "${DIFFERENT_CRDS[@]}"; do
+      IFS="#" read -r resource url <<< "$item"
+      echo -e "- ${YELLOW}${resource}${NC}"
+    done
+  fi
+
+  if [ ${#MISSING_CRDS[@]} -gt 0 ] || [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+    read -p "Do you want to install or update these CRDs? (y/n): " user_input
     case $user_input in
         [Yy]*)
             for item in "${MISSING_CRDS[@]}"; do
               IFS="#" read -r resource url <<< "$item"
-              install_crd "$url" "$resource" && echo -e "missing CRD '${GREEN}$resource${NC}' installed successfully"
+              install_crd "$ISTIO_URL" "$resource" && echo -e "Istio CRD '${GREEN}$resource${NC}' installed successfully"
             done
             for item in "${DIFFERENT_CRDS[@]}"; do
               IFS="#" read -r resource url <<< "$item"
-              install_crd "$url" "$resource" && echo -e "different CRD '${GREEN}$resource${NC}' installed successfully"
+              install_crd "$ISTIO_URL" "$resource" && echo -e "Different Istio CRD '${GREEN}$resource${NC}' updated successfully"
             done
             ;;
         [Nn]*)
@@ -427,7 +400,57 @@ check_others_crds() {
             ;;
     esac
   else
-    echo -e "${GREEN}No missing CRDs detected.${NC}"
+    echo -e "${GREEN}No missing CRDs or updates required.${NC}"
+  fi
+}
+
+check_others_crds() {
+  echo "Checking installed CRDs..."
+  declare -a MISSING_CRDS
+  declare -a DIFFERENT_CRDS
+  for url in "${CRD_URLS[@]}"; do
+    fetch_and_parse_crd "$url"
+  done
+  if [ ${#MISSING_CRDS[@]} -gt 0 ]; then
+    echo -e "\nThe following CRDs are missing and need to be installed:"
+    for item in "${MISSING_CRDS[@]}"; do
+      IFS="#" read -r resource url <<< "$item"
+      echo -e "- ${YELLOW}${resource}${NC}"
+    done
+  fi
+
+  if [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+    echo -e "\nThe following CRDs are different and need to be updated:"
+    for item in "${DIFFERENT_CRDS[@]}"; do
+      IFS="#" read -r resource url <<< "$item"
+      echo -e "- ${YELLOW}${resource}${NC}"
+    done
+  fi
+
+  if [ ${#MISSING_CRDS[@]} -gt 0 ] || [ ${#DIFFERENT_CRDS[@]} -gt 0 ]; then
+    read -p "Do you want to install or update these CRDs? (y/n): " user_input
+    case $user_input in
+        [Yy]*)
+            for item in "${MISSING_CRDS[@]}"; do
+              IFS="#" read -r resource url <<< "$item"
+              install_crd "$url" "$resource" && echo -e "Missing CRD '${GREEN}$resource${NC}' installed successfully"
+            done
+            for item in "${DIFFERENT_CRDS[@]}"; do
+              IFS="#" read -r resource url <<< "$item"
+              install_crd "$url" "$resource" && echo -e "Different CRD '${GREEN}$resource${NC}' updated successfully"
+            done
+            ;;
+        [Nn]*)
+            echo -e "${RED}Installation is canceled.${NC}"
+            exit 1
+            ;;
+        *)
+            echo -e "Invalid input. Please enter ${GREEN}'y'${NC} for yes or ${RED}'n'${NC} for no."
+            exit 1
+            ;;
+    esac
+  else
+    echo -e "${GREEN}No missing CRDs or updates required.${NC}"
   fi
 }
 
@@ -439,9 +462,59 @@ check_jfrogml_namespace() {
     echo "Creating namespace '$namespace'"
     kubectl create namespace "$namespace"
     kubectl label namespace $namespace istio-injection=enabled --overwrite
+    kubectl label namespace $namespace jfrog.com/monitoring=active --overwrite
     echo -e "${GREEN}Namespace '$namespace' created successfully.${NC}"
   fi
   echo -e "${GREEN}Installation script finished successfully.${NC}"
+}
+
+check_prometheus_crds() {
+  # URLs of Prometheus CRDs
+  local prometheus_crd_urls=(
+    "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-podmonitors.yaml"
+    "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-servicemonitors.yaml"
+    "https://raw.githubusercontent.com/qwak-ai/jfrogml-helm-chart-crds/main/crds/crd-prometheusrules.yaml"
+  )
+
+  local found_prometheus_crds=()
+
+  # Check if Prometheus CRDs exist in the cluster
+  for crd_url in "${prometheus_crd_urls[@]}"; do
+    local crd_content=$(curl -sSL "$crd_url")
+
+    # Get CRD resource names from the content
+    local crd_names=($(echo "$crd_content" | yq eval '.metadata.name // "---"' - | grep -v '^---$'))
+
+    for crd in "${crd_names[@]}"; do
+      if kubectl get crd "$crd" &> /dev/null; then
+        found_prometheus_crds+=("$crd")
+      fi
+    done
+  done
+
+  if [ ${#found_prometheus_crds[@]} -gt 0 ]; then
+    echo -e "${GREEN}Prometheus CRDs are already installed in your system. Skipping the installation.${NC}"
+  else
+    echo -e "${YELLOW}No existing Prometheus CRDs found in your system.${NC}"
+    read -p "Do you want to install our Prometheus CRDs (y/n): " choice
+    case "$choice" in
+      yes|y|Y|YES)
+        echo -e "${GREEN}Proceeding with the installation of Prometheus CRDs...${NC}"
+        # Install Prometheus CRDs
+        for crd_url in "${prometheus_crd_urls[@]}"; do
+          kubectl apply -f "$crd_url" && echo -e "CRD from ${GREEN}$crd_url${NC} installed successfully"
+        done
+        ;;
+      no|n|N|NO)
+        echo -e "${YELLOW}Installation of Prometheus CRDs aborted by user.${NC}"
+        exit 1
+        ;;
+      *)
+        echo -e "${RED}Invalid choice. Please run the script again and choose either 'y' or 'n'.${NC}"
+        exit 1
+        ;;
+    esac
+  fi
 }
 
 main() {
@@ -457,7 +530,10 @@ main() {
   echo -e "\n"
   check_istio
   echo -e "\n"
+  check_prometheus_crds
+  echo -e "\n"
   check_jfrogml_namespace
   echo -e "\n"
 }
+
 main
