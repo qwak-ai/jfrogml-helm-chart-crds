@@ -20,12 +20,13 @@ tunnel:
             - .*/v1/registry/join
             - .*/v1/config/shared
         remote:
-          url: https://api.qwak.com
+          url: https://bridge.qwak.ai
 image:
-  # registry: repo21edgesawseuw1.jfrog.io/enterprise-docker
-  registry: repo21edgesawseuw1.jfrog.io/enterprise-docker/jfrogml/171292542837.dkr.ecr.us-east-1.amazonaws.com
-  repository: infra/jfbridge
-  tag: feature-JA-17941-22
+  registry: repo21edgesawseuw1.jfrog.io/enterprise-docker
+  tag: 1.23.1  
+  # registry: repo21edgesawseuw1.jfrog.io/enterprise-docker/jfrogml/171292542837.dkr.ecr.us-east-1.amazonaws.com
+  # repository: infra/jfbridge
+  # tag: feature-JA-17941-22
 router:
   serviceRegistry:
     insecure: true
