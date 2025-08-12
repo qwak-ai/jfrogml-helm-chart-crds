@@ -22,7 +22,9 @@ tunnel:
         remote:
           url: https://api.qwak.com
 image:
-  registry: repo21edgesawseuw1.jfrog.io/enterprise-docker
+  # registry: repo21edgesawseuw1.jfrog.io/enterprise-docker
+  registry: repo21edgesawseuw1.jfrog.io/enterprise-docker/171292542837.dkr.ecr.us-east-1.amazonaws.com/infra/jfbridge
+  tag: feature-JA-17941-22
 router:
   serviceRegistry:
     insecure: true
