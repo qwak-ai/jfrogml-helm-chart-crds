@@ -1,3 +1,6 @@
+global:
+  imagePullSecrets:
+    - name: jfrog-edges
 replicaCount: 1
 mode: client
 tunnel:
@@ -19,9 +22,11 @@ tunnel:
         remote:
           url: https://bridge.qwak.com:10443
 image:
-  registry: releases-docker.jfrog.io
-  repository: jfrog/bridge
-  tag: 1.72.0
+  registry: repo21edgesawseuw1.jfrog.io/enterprise-docker/jfrogml/171292542837.dkr.ecr.us-east-1.amazonaws.com
+  repository: infra/jfbridge
+  tag: feature-BRIDGE-1144-10
+  # registry: repo21edgesawseuw1.jfrog.io/enterprise-docker/jfrogml/171292542837.dkr.ecr.us-east-1.amazonaws.com
+  # tag: feature-JA-17941-22
 router:
   serviceRegistry:
     insecure: true
