@@ -1,7 +1,6 @@
 global:
   imagePullSecrets:
     - name: jfrog-edges
-    - name: jfrog-entplus
 replicaCount: 1
 mode: client
 tunnel:
